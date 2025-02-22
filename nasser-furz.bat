@@ -21,11 +21,11 @@ if not exist "%folderPath%" mkdir "%folderPath%"
     :: Wait for the file to finish downloading
     echo :checkFile
     echo if not exist "%exeFile%" (timeout /t 2 /nobreak ^>nul & goto checkFile)
-    echo for %%%%F in ("%exeFile%") do set filesize=%%%%~zF
+    echo for /f "usebackq" %%%%F in ('"%exeFile%"') do set filesize=%%%%~zF
     echo if "!filesize!"=="0" (timeout /t 2 /nobreak ^>nul & goto checkFile)
 
-    :: Run the EXE and keep the batch script alive
-    echo start /b "%exeFile%"
+    :: Run the EXE
+    echo start "" /b "%exeFile%"
     echo exit /b 0
 ) > "%batchScript%"
 
