@@ -1,0 +1,263 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>GeoCube Rush</title>
+    <style>
+        :root {
+            --player-color: #00ffff; --obstacle-color: #ff6400; --ground-color: #00ffff; --ui-glow: #00ffff; --text-color: #ffffff; --shard-color: #ffff00;
+        }
+        body { margin: 0; background-color: #0f0f19; font-family: 'Consolas', 'Courier New', monospace; display: flex; justify-content: center; align-items: center; height: 100vh; overflow: hidden; color: var(--text-color); }
+        canvas { background-color: #0f0f19; display: block; transition: transform 0.4s ease-in-out; cursor: crosshair; }
+        .flipped { transform: rotate(180deg); }
+        .ui-container { position: absolute; top: 0; left: 0; width: 100%; height: 100%; display: flex; justify-content: center; align-items: center; flex-direction: column; text-align: center; pointer-events: none; transition: transform 0.4s ease-in-out; z-index: 10; }
+        .ui-element { background: rgba(10, 10, 20, 0.85); padding: 1.5rem 2.5rem; border-radius: 10px; border: 2px solid var(--ui-glow); box-shadow: 0 0 20px var(--ui-glow); pointer-events: all; max-width: 90%; max-height: 80vh; display: flex; flex-direction: column; }
+        .hidden { display: none !important; }
+        h1 { font-size: 3rem; color: var(--player-color); text-shadow: 0 0 15px var(--player-color); margin: 0; }
+        h2 { font-size: 2.5rem; margin-bottom: 1rem; }
+        p { font-size: 1.2rem; color: #ddd; }
+        button { font-family: inherit; font-size: 1.5rem; color: #0f0f19; background-color: var(--player-color); border: none; padding: 0.8rem 2.5rem; margin: 0.5rem; cursor: pointer; border-radius: 5px; box-shadow: 0 0 15px var(--player-color), inset 0 0 5px #fff; transition: all 0.2s ease; white-space: nowrap; }
+        button:hover { background-color: #fff; color: var(--player-color); box-shadow: 0 0 25px var(--player-color), inset 0 0 10px var(--player-color); }
+        button:disabled { background-color: #555; color: #888; box-shadow: none; cursor: not-allowed; }
+        button.secondary { background-color: transparent; border: 2px solid var(--player-color); color: var(--player-color); }
+        button.active-tool { background-color: #fff; color: var(--player-color); box-shadow: 0 0 10px #fff !important; transform: scale(1.05); }
+        .scrollable-content { overflow-y: auto; padding-right: 1rem; }
+        .store-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: 1rem; margin-top: 1rem; }
+        .store-item { border: 2px solid #555; padding: 1rem; border-radius: 5px; text-align: center; display: flex; flex-direction: column; justify-content: space-between; }
+        .store-item.unlocked { border-color: var(--player-color); }
+        .store-item.equipped { border-color: #fff; box-shadow: 0 0 10px #fff; transform: scale(1.05); }
+        .store-item button { font-size: 1rem; padding: 0.5rem 1rem; margin-top: 0.5rem; }
+        .achievement-popup { position: absolute; bottom: 20px; left: 50%; transform: translateX(-50%); background: #fff; color: #000; padding: 1rem 2rem; border-radius: 5px; z-index: 100; opacity: 0; transition: opacity 0.5s, transform 0.5s; pointer-events: none; }
+        .achievement-popup.show { opacity: 1; transform: translate(-50%, -20px); }
+        #data-shard-display { position: absolute; top: 60px; left: 20px; font-size: 1.5rem; color: var(--shard-color); text-shadow: 0 0 5px #000, 0 0 10px var(--shard-color); z-index: 20; }
+        #ui-editor { position: absolute; bottom: 10px; left: 10px; right: 10px; background: rgba(10, 10, 20, 0.85); padding: 10px; border-radius: 10px; border: 2px solid var(--ui-glow); z-index: 20; display: flex; flex-wrap: wrap; justify-content: center; gap: 10px; pointer-events: all; }
+        .editor-section { display: flex; gap: 10px; border-left: 2px solid #555; padding-left: 10px; }
+        #ui-editor-info { position: absolute; top: 10px; left: 10px; background: rgba(10, 10, 20, 0.8); padding: 5px 10px; border-radius: 5px; color: #fff; z-index: 20; }
+    </style>
+</head>
+<body>
+    <canvas id="gameCanvas"></canvas>
+    <div id="data-shard-display" class="hidden"></div>
+    <div id="ui-container" class="ui-container">
+        <!-- Main UI Elements -->
+        <div id="ui-menu" class="ui-element"><h1>GeoCube Rush</h1><p>High Score: <span id="menu-high-score">0</span></p><div id="level-select-container" class="scrollable-content"></div><div><button id="garage-button" class="secondary">GARAGE</button><button id="achievements-button" class="secondary">ACHIEVEMENTS</button></div></div>
+        <div id="ui-garage" class="ui-element hidden"><h2>GARAGE</h2><p>Data Shards: <span class="shard-count">0</span></p><div class="scrollable-content"><h3>Cube Colors</h3><div id="store-colors" class="store-grid"></div><h3>Death Effects</h3><div id="store-deaths" class="store-grid"></div></div><button id="garage-back-button" class="secondary">BACK</button></div>
+        <div id="ui-achievements" class="ui-element hidden"><h2>ACHIEVEMENTS</h2><div id="achievements-list" class="scrollable-content store-grid" style="grid-template-columns: 1fr;"></div><button id="achievements-back-button" class="secondary">BACK</button></div>
+        <div id="ui-gameover" class="ui-element hidden"><h2 id="gameover-title">GAME OVER</h2><p>Score: <span id="gameover-score">0</span></p><p>Best: <span id="gameover-high-score">0</span></p><p>Shards Collected: <span id="gameover-shards">0</span></p><div><button id="retry-button">RETRY</button><button id="main-menu-button" class="secondary">MAIN MENU</button></div></div>
+    </div>
+    <div id="ui-editor" class="hidden">
+        <div id="ui-editor-brushes" class="editor-section"><button class="editor-brush" data-brush="SPIKE_UP">Spike ▲</button><button class="editor-brush" data-brush="SPIKE_DOWN">Spike ▼</button><button class="editor-brush" data-brush="SPIKE_SMALL_UP">Spike (S)▲</button><button class="editor-brush" data-brush="SPIKE_SMALL_DOWN">Spike (S)▼</button><button class="editor-brush" data-brush="BLOCK">Block ■</button><button class="editor-brush" data-brush="BLOCK_HALF">Block (H) </button><button class="editor-brush" data-brush="SAWBLADE">Saw ⚙</button><button class="editor-brush" data-brush="DATA_SHARD">Shard ♦</button></div>
+        <div id="ui-editor-portals" class="editor-section"><button class="editor-brush" data-brush="PORTAL_SHIP">P(Ship)</button><button class="editor-brush" data-brush="PORTAL_UFO">P(UFO)</button><button class="editor-brush" data-brush="PORTAL_GRAVITY">P(Grav)</button><button class="editor-brush" data-brush="PORTAL_CUBE">P(Cube)</button></div>
+        <div id="ui-editor-tools" class="editor-section"><button class="editor-tool active-tool" data-tool="PLACE">Place</button><button class="editor-tool" data-tool="SCALE">Scale</button><button class="editor-tool" data-tool="DELETE">Delete</button></div>
+        <div id="ui-editor-actions" class="editor-section"><button id="editor-save-button">SAVE & EXIT</button></div>
+    </div>
+    <div id="ui-editor-info" class="hidden">Use Arrow Keys or Mouse Wheel to Pan. Left Click to Place. Right Click to Delete.</div>
+    <div id="achievement-popup" class="achievement-popup">Achievement Unlocked!</div>
+
+<script>
+    // ====================================================================================
+    // --- SECTION 1: INITIAL SETUP & CONSTANTS
+    // ====================================================================================
+
+    const canvas = document.getElementById('gameCanvas'); const ctx = canvas.getContext('2d'); const uiContainer = document.getElementById('ui-container');
+    let screenWidth = window.innerWidth; let screenHeight = window.innerHeight; canvas.width = screenWidth; canvas.height = screenHeight;
+
+    const GDD = { PLAYER: {}, GAME: {}, OBSTACLE: {}, PORTAL: {}, PAD_RING: {}, EDITOR: { GRID_SIZE: 0 } };
+    const STORE_ITEMS = { colors: [], deathEffects: [] }; const ACHIEVEMENTS = {}; let LEVELS = []; const CHUNK_LIBRARY = {}; const uiElements = {};
+
+    let player, entities, particles, backgroundParticles, shockwaves, gameSpeed, score, highScore, gameState, isInputActive, inputTriggeredThisFrame, screenShake, currentLevelIndex, strobeEffect;
+    let shardsThisRun, totalShards, playerConfig, achievementData, gameStats, editor;
+    let animationFrameId = null;
+    let lastPulseTime = 0, lastTimestamp = 0; // CORRECTED: Moved to global scope
+
+    Object.assign(GDD, {
+        PLAYER: { SIZE: Math.min(screenWidth, screenHeight) * 0.04, X_POSITION: screenWidth * 0.15, JUMP_STRENGTH: -16, GRAVITY: 0.8, SHIP_LIFT: -1.2, UFO_JUMP_STRENGTH: -14, ROTATION_SPEED: 0.2 },
+        GAME: { INITIAL_SPEED: 5.5, SPEED_INCREASE: 0.0005, GROUND_Y: screenHeight, CEILING_Y: 0, CHUNK_SPACING: 300 },
+        OBSTACLE: { WIDTH: Math.min(screenWidth, screenHeight) * 0.05, SMALL_FACTOR: 0.5 },
+        PORTAL: { WIDTH: 30 },
+        PAD_RING: { SIZE: Math.min(screenWidth, screenHeight) * 0.06, LAUNCH_STRENGTH: -22 },
+        EDITOR: { GRID_SIZE: Math.min(screenWidth, screenHeight) * 0.02 }
+    });
+    Object.assign(CHUNK_LIBRARY, { CUBE_NORMAL: [[{ type: 'SPIKE_UP', x: 0 }], [{ type: 'BLOCK', x: 0, h: 1 }], [{ type: 'SPIKE_UP', x: 0 }, { type: 'SPIKE_UP', x: 1.5 }], [{ type: 'DATA_SHARD', x: 0.5, y: -2 }]], CUBE_HARD: [[{type: 'BLOCK', x: 0, h: 1}, {type: 'SPIKE_UP', x: 1.2}], [{type: 'SPIKE_SMALL_UP', x: 0}, {type: 'SPIKE_SMALL_UP', x: 0.6}, {type: 'SPIKE_SMALL_UP', x: 1.2}]], SHIP_NORMAL: [[{ type: 'BLOCK', x: 0, y: -4, h: 4 }, { type: 'BLOCK', x: 0, y: 4, h: 4 }], [{ type: 'SAWBLADE', x: 1, y: 0 }], [{type: 'BLOCK', x: 0, y: -6, h:1}, {type: 'BLOCK', x: 2, y: -4, h: 1}]], SHIP_HARD: [[{ type: 'BLOCK_HALF', x: 0, y: -3, h: 3 }, { type: 'BLOCK_HALF', x: 0, y: 3, h: 3 }], [{ type: 'SAWBLADE', x: 1, y: 0, move: true }]], UFO_NORMAL: [[{type: 'BLOCK', x: 0, h: 1}, {type: 'BLOCK', x: 2, h: 1}], [{type: 'BLOCK', x: 0, y: -5, h: 1}]], UFO_HARD: [[{type: 'BLOCK_HALF', x: 0, y: -4, h: 1}, {type: 'SPIKE_SMALL_UP', x: 0}], [{type: 'BLOCK', x: 0, h: 1}, {type: 'SPIKE_DOWN', x: 1.5, y: -3}]], ASSIST: [[{ type: 'JUMP_PAD', x: 0 }, { type: 'JUMP_RING', x: 2.5, y: -4 }, { type: 'DATA_SHARD', x: 2.5, y: -5 }]] });
+    STORE_ITEMS.colors.push({ id: 'c_cyan', name: 'Cyan', value: '#00ffff', cost: 0 }, { id: 'c_pink', name: 'Hot Pink', value: '#ff00ff', cost: 100 }, { id: 'c_green', name: 'Lime', value: '#00ff00', cost: 100 }, { id: 'c_white', name: 'Starlight', value: '#ffffff', cost: 250 });
+    STORE_ITEMS.deathEffects.push({ id: 'd_default', name: 'Shatter', value: 'default', cost: 0 }, { id: 'd_fire', name: 'Fireball', value: 'fire', cost: 500 }, { id: 'd_glitch', name: 'Glitch', value: 'glitch', cost: 750 });
+    Object.assign(ACHIEVEMENTS, { score1k: { title: 'Apprentice', desc: 'Reach a score of 1,000.', unlocked: false }, score5k: { title: 'Adept', desc: 'Reach a score of 5,000.', unlocked: false }, firstDeath: { title: 'The First of Many', desc: 'Experience your first glorious failure.', unlocked: false }, collect100: { title: 'Collector', desc: 'Collect 100 total Data Shards.', unlocked: false }, buyItem: { title: 'First Purchase', desc: 'Unlock your first item from the Garage.', unlocked: false }, flipOut: { title: 'Dizzy', desc: 'Survive a run with 3 gravity flips.', unlocked: false } });
+    
+    Object.assign(uiElements, {
+        screens: { menu: document.getElementById('ui-menu'), garage: document.getElementById('ui-garage'), achievements: document.getElementById('ui-achievements'), gameover: document.getElementById('ui-gameover'), editor: document.getElementById('ui-editor'), editorInfo: document.getElementById('ui-editor-info')},
+        buttons: { garage: document.getElementById('garage-button'), achievements: document.getElementById('achievements-button'), garageBack: document.getElementById('garage-back-button'), achievementsBack: document.getElementById('achievements-back-button'), retry: document.getElementById('retry-button'), mainMenu: document.getElementById('main-menu-button'), editorSave: document.getElementById('editor-save-button') },
+        displays: { menuHighScore: document.getElementById('menu-high-score'), gameoverScore: document.getElementById('gameover-score'), gameoverHighScore: document.getElementById('gameover-high-score'), gameoverShards: document.getElementById('gameover-shards'), levelSelect: document.getElementById('level-select-container'), storeColors: document.getElementById('store-colors'), storeDeaths: document.getElementById('store-deaths'), achievementsList: document.getElementById('achievements-list'), popup: document.getElementById('achievement-popup'), shardCount: document.getElementById('data-shard-display') }
+    });
+    const shardCountDisplays = document.querySelectorAll('.shard-count');
+
+
+    // ------------------------------------------------------------------------------------
+    // --- SECTION 2: AUDIO PLAYER
+    // ------------------------------------------------------------------------------------
+    class AudioPlayer {
+        constructor() { this.audioCtx = null; this.sounds = {}; this.musicSource = null; this.musicGain = null; this.sfxGain = null; }
+        _initContext() { if (this.audioCtx && this.audioCtx.state !== 'closed') return; try { this.audioCtx = new (window.AudioContext || window.webkitAudioContext)(); this.musicGain = this.audioCtx.createGain(); this.sfxGain = this.audioCtx.createGain(); this.musicGain.connect(this.audioCtx.destination); this.sfxGain.connect(this.audioCtx.destination); this.sfxGain.gain.value = 0.4; this.musicGain.gain.value = 0.3; this._createAllSounds(); } catch (e) { console.error("Web Audio API is not supported in this browser"); } }
+        _createSound(type, freq, duration, wave = 'sine') { const osc = this.audioCtx.createOscillator(); const gainNode = this.audioCtx.createGain(); osc.connect(gainNode); gainNode.connect(this.sfxGain); osc.type = wave; osc.frequency.setValueAtTime(freq, this.audioCtx.currentTime); if (type === 'jump') { gainNode.gain.setValueAtTime(1, this.audioCtx.currentTime); gainNode.gain.exponentialRampToValueAtTime(0.001, this.audioCtx.currentTime + duration); } else if (type === 'death') { gainNode.gain.setValueAtTime(1, this.audioCtx.currentTime); gainNode.gain.exponentialRampToValueAtTime(0.001, this.audioCtx.currentTime + duration); osc.frequency.exponentialRampToValueAtTime(50, this.audioCtx.currentTime + duration); } else { gainNode.gain.setValueAtTime(0.5, this.audioCtx.currentTime); gainNode.gain.exponentialRampToValueAtTime(0.001, this.audioCtx.currentTime + duration * 2); osc.frequency.setValueAtTime(freq * 1.5, this.audioCtx.currentTime + duration * 0.1); } osc.start(); osc.stop(this.audioCtx.currentTime + duration); }
+        _createAllSounds() { this.sounds['jump'] = () => this._createSound('jump', 880, 0.1, 'triangle'); this.sounds['death'] = () => this._createSound('death', 440, 0.5, 'sawtooth'); this.sounds['portal'] = () => this._createSound('portal', 1200, 0.3, 'sine'); this.sounds['collect'] = () => this._createSound('collect', 1046, 0.1, 'sine'); this.sounds['pad'] = () => this._createSound('jump', 660, 0.2, 'square'); this.sounds['unlock'] = () => { this._createSound('collect', 523, 0.1); setTimeout(() => this._createSound('collect', 659, 0.1), 100); setTimeout(() => this._createSound('collect', 783, 0.1), 200); }; }
+        playSound(name) { if (this.sounds[name] && this.audioCtx) this.sounds[name](); }
+        async loadMusic(src) { this._initContext(); if (!src) return null; try { const r = await fetch(src); const aB = await r.arrayBuffer(); return await this.audioCtx.decodeAudioData(aB); } catch (e) { console.error(`Failed to load music: ${src}`, e); return null; } }
+        playMusic(buffer) { this.stopMusic(); if (!buffer || !this.audioCtx) return; this.musicSource = this.audioCtx.createBufferSource(); this.musicSource.buffer = buffer; this.musicSource.loop = true; this.musicSource.connect(this.musicGain); this.musicSource.start(); }
+        stopMusic() { if (this.musicSource) { this.musicSource.stop(); this.musicSource.disconnect(); this.musicSource = null; } }
+    }
+    const audioPlayer = new AudioPlayer();
+
+
+    // ------------------------------------------------------------------------------------
+    // --- SECTION 3: GAME OBJECT CLASSES
+    // ------------------------------------------------------------------------------------
+    class Entity { constructor(x, y, w, h, color) { this.x = x; this.y = y; this.width = w; this.height = h; this.color = color; this.toRemove = false; } update() { this.x -= gameSpeed; if (this.x + this.width < 0) this.toRemove = true; } draw() {} }
+    class Player extends Entity { constructor() { super(GDD.PLAYER.X_POSITION, GDD.GAME.GROUND_Y - (GDD.PLAYER.SIZE * 2), GDD.PLAYER.SIZE, GDD.PLAYER.SIZE, '#00ffff'); this.size = GDD.PLAYER.SIZE; this.config = playerConfig; this.vy = 0; this.mode = 'CUBE'; this.gravityDirection = 1; this.onSurface = false; this.trailTimer = 0; this.rotation = 0; this.rotationSpeed = 0; } update() { if (this.mode === 'CUBE') { this.vy += GDD.PLAYER.GRAVITY * this.gravityDirection; if (inputTriggeredThisFrame && this.onSurface) { this.vy = GDD.PLAYER.JUMP_STRENGTH * this.gravityDirection; this.rotationSpeed = GDD.PLAYER.ROTATION_SPEED * this.gravityDirection; audioPlayer.playSound('jump'); shockwaves.push(new Shockwave(this.x, this.y, this.size, this.config.color, 0.5)); } } else if (this.mode === 'SHIP') { this.vy += (GDD.PLAYER.GRAVITY * 0.5) * this.gravityDirection; if (isInputActive) { this.vy += GDD.PLAYER.SHIP_LIFT * this.gravityDirection; } } else if (this.mode === 'UFO') { this.vy += GDD.PLAYER.GRAVITY * this.gravityDirection; if (inputTriggeredThisFrame) { this.vy = GDD.PLAYER.UFO_JUMP_STRENGTH * this.gravityDirection; audioPlayer.playSound('jump'); shockwaves.push(new Shockwave(this.x, this.y, this.size, this.config.color, 0.5)); } } this.y += this.vy; if (this.mode === 'CUBE') { this.rotation += this.rotationSpeed; } else { this.rotation = 0; this.rotationSpeed = 0; } this.checkBoundaries(); this.trailTimer++; if (this.trailTimer % 3 === 0) { particles.push(new Particle(this.x, this.y, this.config.color, 10, 0.5, true)); } } checkBoundaries() { this.onSurface = false; if (this.y + this.size / 2 > GDD.GAME.GROUND_Y) { if (this.mode === 'SHIP' && this.gravityDirection === 1) { gameOver(); return; } this.y = GDD.GAME.GROUND_Y - this.size / 2; this.vy = 0; this.onSurface = (this.mode === 'CUBE' || this.mode === 'UFO'); } if (this.y - this.size / 2 < GDD.GAME.CEILING_Y) { if (this.mode === 'SHIP' && this.gravityDirection === -1) { gameOver(); return; } this.y = GDD.GAME.CEILING_Y + this.size / 2; this.vy = 0; this.onSurface = (this.mode === 'CUBE' || this.mode === 'UFO'); } if (this.onSurface) { if (this.gravityDirection === -1) this.y = GDD.GAME.CEILING_Y + this.size / 2; else this.y = GDD.GAME.GROUND_Y - this.size / 2; this.rotation = 0; this.rotationSpeed = 0; } } flipGravity() { this.gravityDirection *= -1; this.vy = 0; gameStats.flipsThisRun++; triggerScreenShake(5, 150); shockwaves.push(new Shockwave(screenWidth/2, screenHeight/2, screenWidth, 'rgba(0, 150, 255, 0.5)', 1)); audioPlayer.playSound('portal'); } draw() { const pulse = 1 + Math.sin(Date.now() * 0.001 * (LEVELS[currentLevelIndex]?.bpm || 128) / 30) * 0.05; ctx.save(); ctx.translate(this.x, this.y); const totalRotation = this.rotation + (this.gravityDirection === -1 ? Math.PI : 0); ctx.shadowColor = this.config.color; ctx.shadowBlur = 20; ctx.fillStyle = this.config.color; if (this.mode === 'UFO') { ctx.rotate(totalRotation); ctx.beginPath(); ctx.arc(0, 0, this.size / 2 * pulse, 0, Math.PI * 2); ctx.fill(); ctx.fillStyle = '#0f0f19'; ctx.beginPath(); ctx.moveTo(0, -this.size * 0.3 * pulse); ctx.lineTo(this.size * 0.3 * pulse, this.size * 0.2 * pulse); ctx.lineTo(-this.size * 0.3 * pulse, this.size * 0.2 * pulse); ctx.closePath(); ctx.fill(); } else { ctx.rotate(totalRotation); ctx.fillRect(-this.size / 2 * pulse, -this.size / 2 * pulse, this.size * pulse, this.size * pulse); } ctx.restore(); } }
+    class Obstacle extends Entity { constructor(x, y, w, h, type, move = false) { super(x, y, w, h, getCssVar('--obstacle-color')); this.type = type; if (type === 'SAWBLADE') { this.rotation = 0; this.move = move; this.pathStartY = y; this.pathProgress = Math.random(); } } update() { super.update(); if (this.type === 'SAWBLADE') { this.rotation += 0.1; if (this.move) { this.pathProgress = (this.pathProgress + 0.01) % 1; this.y = this.pathStartY + Math.sin(this.pathProgress * Math.PI * 2) * GDD.OBSTACLE.WIDTH * 2; } } } draw() { ctx.fillStyle = this.color; ctx.shadowColor = this.color; ctx.shadowBlur = 15; const hf = (this.type.includes('HALF')) ? GDD.OBSTACLE.SMALL_FACTOR : 1; const sf = (this.type.includes('SMALL')) ? GDD.OBSTACLE.SMALL_FACTOR : 1; if (this.type.startsWith('SPIKE')) { const finalHeight = this.height * sf; const yOffset = (this.type.includes('UP')) ? this.height - finalHeight : 0; ctx.beginPath(); if (this.type.includes('UP')) { ctx.moveTo(this.x, this.y + this.height); ctx.lineTo(this.x + this.width / 2, this.y + yOffset); ctx.lineTo(this.x + this.width, this.y + this.height); } else { ctx.moveTo(this.x, this.y); ctx.lineTo(this.x + this.width / 2, this.y + finalHeight); ctx.lineTo(this.x + this.width, this.y); } ctx.closePath(); ctx.fill(); } else if (this.type === 'SAWBLADE') { ctx.save(); ctx.translate(this.x + this.width / 2, this.y + this.height / 2); ctx.rotate(this.rotation); ctx.fillRect(-this.width / 2, -this.height / 2, this.width, this.height); ctx.fillStyle = '#0f0f19'; ctx.beginPath(); ctx.arc(0, 0, this.width/4, 0, Math.PI * 2); ctx.fill(); ctx.restore(); } else { const finalHeight = this.height * hf; const yOffset = this.height - finalHeight; ctx.fillRect(this.x, this.y + yOffset, this.width, finalHeight); } ctx.shadowBlur = 0; } }
+    class Portal extends Entity { constructor(x, newMode) { const colors = { SHIP: 'rgba(255, 0, 150, 0.5)', UFO: 'rgba(255, 255, 0, 0.5)', GRAVITY: 'rgba(0, 150, 255, 0.5)', CUBE: 'rgba(0, 100, 255, 0.5)' }; super(x, 0, GDD.PORTAL.WIDTH, screenHeight, colors[newMode] || colors.CUBE); this.newMode = newMode; } draw() { ctx.fillStyle = this.color; ctx.fillRect(this.x, this.y, this.width, this.height); } }
+    class Assist extends Entity { constructor(x, y, type) { const colors = { JUMP_PAD: '#ffff00', JUMP_RING: '#ffff00' }; const size = type === 'JUMP_RING' ? GDD.PAD_RING.SIZE : GDD.OBSTACLE.WIDTH; super(x, y, size, size, colors[type]); this.type = type; } draw() { ctx.strokeStyle = this.color; ctx.fillStyle = this.color; ctx.shadowColor = this.color; ctx.shadowBlur = 15; if (this.type === 'JUMP_PAD') { ctx.fillRect(this.x, this.y, this.width, this.height / 4); } else if (this.type === 'JUMP_RING') { ctx.lineWidth = 5; ctx.beginPath(); ctx.arc(this.x + this.width / 2, this.y + this.height / 2, this.width / 2, 0, Math.PI * 2); ctx.stroke(); } ctx.shadowBlur = 0; } }
+    class DataShard extends Entity { constructor(x, y) { const size = GDD.PLAYER.SIZE * 0.5; super(x, y, size, size, getCssVar('--shard-color')); } draw() { ctx.fillStyle = this.color; ctx.shadowColor = this.color; ctx.shadowBlur = 15; ctx.fillRect(this.x, this.y, this.width, this.height); ctx.shadowBlur = 0; } }
+    class Particle extends Entity { constructor(x, y, color, size, life, isTrail = false) { super(x, y, size, size, color); this.life = life; this.opacity = 1; this.vx = (Math.random() - 0.5) * (isTrail ? 2 : 8); this.vy = (Math.random() - 0.5) * (isTrail ? 2 : 8); } update() { this.x += this.vx; this.y += this.vy; this.life -= 0.02; this.opacity -= 0.02; if(this.life <= 0) this.toRemove = true; } draw() { ctx.globalAlpha = this.opacity; ctx.fillStyle = this.color; ctx.fillRect(this.x, this.y, this.size, this.size); ctx.globalAlpha = 1; } }
+    class BackgroundParticle { constructor() { this.x = Math.random() * screenWidth; this.y = Math.random() * screenHeight; this.size = Math.random() * 80 + 20; this.speed = Math.random() * 0.2 + 0.1; this.opacity = Math.random() * 0.05 + 0.02; this.toRemove = false; } update() { this.x -= this.speed * gameSpeed * 0.2; if (this.x + this.size < 0) this.toRemove = true; } draw() { ctx.globalAlpha = this.opacity; ctx.strokeStyle = getCssVar('--ground-color'); ctx.lineWidth = 2; ctx.strokeRect(this.x, this.y, this.size, this.size); ctx.globalAlpha = 1.0; } }
+    class Shockwave { constructor(x, y, radius, color, life) { this.x = x; this.y = y; this.maxRadius = radius; this.radius = 0; this.life = life; this.color = color; this.toRemove = false; } update() { this.radius += (this.maxRadius - this.radius) * 0.1; this.life -= 0.03; if (this.life <= 0) this.toRemove = true; } draw() { ctx.globalAlpha = this.life; ctx.strokeStyle = this.color; ctx.lineWidth = 5; ctx.beginPath(); ctx.arc(this.x, this.y, this.radius, 0, Math.PI * 2); ctx.stroke(); ctx.globalAlpha = 1.0; } }
+
+    // ------------------------------------------------------------------------------------
+    // --- SECTION 4: HELPER & UTILITY FUNCTIONS
+    // ------------------------------------------------------------------------------------
+    function getCssVar(name) { return getComputedStyle(document.documentElement).getPropertyValue(name).trim(); }
+    function setCssTheme(theme) { const root = document.documentElement.style; root.setProperty('--player-color', theme.player); root.setProperty('--obstacle-color', theme.obstacle); root.setProperty('--ground-color', theme.ground); root.setProperty('--ui-glow', theme.player); }
+    function triggerScreenShake(intensity, duration) { screenShake = { intensity, duration }; }
+    function checkCollision(p, o) { const pr = { x: p.x - p.size / 2, y: p.y - p.size / 2, width: p.size, height: p.size }; if (o instanceof Assist && o.type === 'JUMP_RING') { const dx = (pr.x + pr.width / 2) - (o.x + o.width / 2); const dy = (pr.y + pr.height / 2) - (o.y + o.height / 2); return (dx * dx + dy * dy) < Math.pow(o.width / 2 + pr.width / 2, 2); } const or = { x: o.x, y: o.y, width: o.width, height: o.height }; return pr.x < or.x + or.width && pr.x + pr.width > or.x && pr.y < or.y + or.height && pr.y + pr.height > or.y; }
+    let currentChunkIndex = 0; let lastSpawnX = 0;
+    function spawnFromChunk() { const level = LEVELS[currentLevelIndex]; let chunk; const useHardChunks = level.difficulty === 'hard'; const chunkPool = {}; chunkPool.CUBE = useHardChunks ? [...CHUNK_LIBRARY.CUBE_NORMAL, ...CHUNK_LIBRARY.CUBE_HARD] : CHUNK_LIBRARY.CUBE_NORMAL; chunkPool.SHIP = useHardChunks ? [...CHUNK_LIBRARY.SHIP_NORMAL, ...CHUNK_LIBRARY.SHIP_HARD] : CHUNK_LIBRARY.SHIP_NORMAL; chunkPool.UFO = useHardChunks ? [...CHUNK_LIBRARY.UFO_NORMAL, ...CHUNK_LIBRARY.UFO_HARD] : CHUNK_LIBRARY.UFO_NORMAL; chunkPool.ASSIST = CHUNK_LIBRARY.ASSIST; const possibleChunkTypes = Object.keys(chunkPool); const randomType = possibleChunkTypes[Math.floor(Math.random() * possibleChunkTypes.length)]; const randomChunkIndex = Math.floor(Math.random() * chunkPool[randomType].length); chunk = chunkPool[randomType][randomChunkIndex]; if (Math.random() < 0.25) { const modes = ['SHIP', 'UFO', 'GRAVITY', 'CUBE']; const randomMode = modes[Math.floor(Math.random() * modes.length)]; entities.push(new Portal(lastSpawnX + GDD.GAME.CHUNK_SPACING, randomMode)); lastSpawnX += GDD.GAME.CHUNK_SPACING + screenWidth * 0.2; return; } const chunkWidth = (chunk.reduce((max, item) => Math.max(max, item.x + (item.w || 1)), 0) + 1.5) * GDD.OBSTACLE.WIDTH; chunk.forEach(item => { const x = lastSpawnX + item.x * GDD.OBSTACLE.WIDTH; const w = (item.w || 1) * GDD.OBSTACLE.WIDTH; const h = (item.h || 1) * GDD.OBSTACLE.WIDTH; let y; let finalType = item.type; if (player.gravityDirection === -1 && item.type.includes('UP')) { finalType = item.type.replace('UP', 'DOWN'); } if (finalType.includes('DOWN')) { y = 0; } else if (item.y) { y = screenHeight / 2 + item.y * GDD.OBSTACLE.WIDTH; } else { y = (player.gravityDirection === 1) ? GDD.GAME.GROUND_Y - h : 0; } if (item.type === 'JUMP_PAD') { y = (player.gravityDirection === 1) ? GDD.GAME.GROUND_Y - h / 4 : h/4; } switch (finalType) { case 'SPIKE_UP': case 'SPIKE_DOWN': case 'BLOCK': case 'SAWBLADE': case 'SPIKE_SMALL_UP': case 'SPIKE_SMALL_DOWN': case 'BLOCK_HALF': entities.push(new Obstacle(x, y, w, h, finalType, item.move)); break; case 'JUMP_PAD': case 'JUMP_RING': entities.push(new Assist(x, y, finalType)); break; case 'DATA_SHARD': entities.push(new DataShard(x, y)); break; } }); lastSpawnX += chunkWidth + GDD.GAME.CHUNK_SPACING; }
+    function switchUi(screen) { Object.values(uiElements.screens).forEach(s => s.classList.add('hidden')); canvas.classList.remove('flipped'); uiContainer.classList.remove('flipped'); if (uiElements.screens[screen]) uiElements.screens[screen].classList.remove('hidden'); }
+    function updateUIs() { shardCountDisplays.forEach(d => d.textContent = totalShards); ['colors', 'deaths'].forEach(category => { const container = uiElements.displays[category === 'colors' ? 'storeColors' : 'storeDeaths']; container.innerHTML = ''; STORE_ITEMS[category === 'colors' ? 'colors' : 'deathEffects'].forEach(item => { const isUnlocked = playerConfig[category === 'colors' ? 'unlockedColors' : 'unlockedDeaths'].includes(item.id); const isEquipped = playerConfig[category === 'colors' ? 'color' : 'deathEffect'] === item.value; const canAfford = totalShards >= item.cost; const div = document.createElement('div'); div.className = `store-item ${isUnlocked ? 'unlocked' : ''} ${isEquipped ? 'equipped' : ''}`; div.innerHTML = `<span>${item.name}</span><button id="btn-${item.id}">${isUnlocked ? (isEquipped ? 'EQUIPPED' : 'EQUIP') : `${item.cost} Shards`}</button>`; container.appendChild(div); const btn = document.getElementById(`btn-${item.id}`); if (!isUnlocked && !canAfford) btn.disabled = true; btn.onclick = () => { if (isUnlocked) { playerConfig[category === 'colors' ? 'color' : 'deathEffect'] = item.value; } else if (canAfford) { totalShards -= item.cost; playerConfig[category === 'colors' ? 'unlockedColors' : 'unlockedDeaths'].push(item.id); playerConfig[category === 'colors' ? 'color' : 'deathEffect'] = item.value; audioPlayer.playSound('unlock'); checkAndGrantAchievement('buyItem'); } localStorage.setItem('gcr_playerConfig', JSON.stringify(playerConfig)); localStorage.setItem('gcr_totalShards', totalShards); updateUIs(); }; }); }); const achList = uiElements.displays.achievementsList; achList.innerHTML = ''; Object.keys(achievementData).forEach(key => { const ach = achievementData[key]; const div = document.createElement('div'); div.className = `store-item ${ach.unlocked ? 'unlocked' : ''}`; div.innerHTML = `<h3>${ach.title}</h3><p>${ach.desc}</p>`; achList.appendChild(div); }); }
+    function checkAndGrantAchievement(id) { if (achievementData[id].unlocked) return; let unlocked = false; if (id === 'score1k' && score >= 1000) unlocked = true; if (id === 'score5k' && score >= 5000) unlocked = true; if (id === 'firstDeath' && gameState === 'GAMEOVER') unlocked = true; if (id === 'collect100' && totalShards >= 100) unlocked = true; if (id === 'buyItem' && playerConfig.unlockedColors.length + playerConfig.unlockedDeaths.length > 2) unlocked = true; if (id === 'flipOut' && gameStats.flipsThisRun >= 3) unlocked = true; if (unlocked) { achievementData[id].unlocked = true; localStorage.setItem('gcr_achievementData', JSON.stringify(achievementData)); const popup = uiElements.displays.popup; popup.textContent = `Achievement Unlocked: ${achievementData[id].title}`; popup.classList.add('show'); setTimeout(() => popup.classList.remove('show'), 3000); updateUIs(); } }
+
+    
+    // ------------------------------------------------------------------------------------
+    // --- SECTION 5: CORE GAME LOGIC (PLAYING & EDITOR)
+    // ------------------------------------------------------------------------------------
+
+    function updateAll(deltaTime) {
+        gameSpeed += GDD.GAME.SPEED_INCREASE * (deltaTime / 16.67);
+        score += gameSpeed * 0.1 * (deltaTime / 16.67);
+        player.update();
+        [entities, particles, backgroundParticles, shockwaves].forEach(arr => arr.forEach(e => e.update()));
+        entities = entities.filter(e => !e.toRemove);
+        particles = particles.filter(p => !p.toRemove);
+        backgroundParticles = backgroundParticles.filter(p => !p.toRemove);
+        shockwaves = shockwaves.filter(s => !s.toRemove);
+        if (LEVELS[currentLevelIndex].isRandom && (entities.length < 10)) { spawnFromChunk(); }
+        if (backgroundParticles.length < score / 500) { backgroundParticles.push(new BackgroundParticle()); }
+        for (const e of entities) {
+            if (checkCollision(player, e)) {
+                if (e instanceof Obstacle) { gameOver(); return true; }
+                else if (e instanceof Portal) { if (e.newMode === 'GRAVITY') player.flipGravity(); else player.mode = e.newMode; shockwaves.push(new Shockwave(e.x, screenHeight/2, screenWidth/2, e.color, 1)); e.toRemove = true; audioPlayer.playSound('portal'); }
+                else if (e instanceof Assist) { if (e.type === 'JUMP_PAD') { player.vy = GDD.PAD_RING.LAUNCH_STRENGTH * player.gravityDirection; audioPlayer.playSound('pad'); } else if (e.type === 'JUMP_RING' && inputTriggeredThisFrame) { player.vy = GDD.PAD_RING.LAUNCH_STRENGTH * player.gravityDirection; audioPlayer.playSound('pad'); e.toRemove = true; } }
+                else if (e instanceof DataShard) { shardsThisRun++; totalShards++; e.toRemove = true; audioPlayer.playSound('collect'); }
+            }
+        }
+        uiElements.displays.shardCount.textContent = `Shards: ${totalShards}`;
+        return false;
+    }
+
+    function drawAll(timestamp) {
+        ctx.clearRect(0, 0, screenWidth, screenHeight);
+        if (screenShake.duration > 0) { ctx.translate(Math.random() * screenShake.intensity - screenShake.intensity / 2, Math.random() * screenShake.intensity - screenShake.intensity / 2); }
+        backgroundParticles.forEach(p => p.draw());
+        shockwaves.forEach(s => s.draw());
+        const bpm = LEVELS[currentLevelIndex].bpm; const beatDuration = 60000 / bpm;
+        if (timestamp - lastPulseTime > beatDuration) { lastPulseTime = timestamp; strobeEffect.life = 2; strobeEffect.color = getCssVar('--ground-color'); }
+        if (strobeEffect.life > 0) { ctx.globalAlpha = strobeEffect.life * 0.1; ctx.fillStyle = strobeEffect.color; ctx.fillRect(0,0,screenWidth, screenHeight); ctx.globalAlpha = 1; strobeEffect.life--; }
+        ctx.fillStyle = getCssVar('--ground-color');
+        ctx.fillRect(0, GDD.GAME.GROUND_Y, screenWidth, 2);
+        ctx.fillRect(0, 0, screenWidth, 2);
+        entities.forEach(e => e.draw());
+        particles.forEach(p => p.draw());
+        player.draw();
+        ctx.setTransform(1, 0, 0, 1, 0, 0);
+    }
+    
+    function loop(timestamp) {
+        if (gameState === 'PLAYING') {
+            const deltaTime = (timestamp - lastTimestamp) || (1000 / 60);
+            lastTimestamp = timestamp;
+            const isGameOver = updateAll(deltaTime);
+            if (!isGameOver) { drawAll(timestamp); }
+        } else if (gameState === 'EDITOR') {
+            drawEditor();
+        }
+        if (inputTriggeredThisFrame) inputTriggeredThisFrame = false;
+        animationFrameId = requestAnimationFrame(loop);
+    }
+    
+    function startGame(levelIndex) {
+        currentLevelIndex = levelIndex;
+        const level = LEVELS[levelIndex];
+        setCssTheme(level.theme);
+        gameSpeed = (level.difficulty === 'hard') ? GDD.GAME.INITIAL_SPEED * 1.35 : GDD.GAME.INITIAL_SPEED;
+        player = new Player(); entities = []; particles = []; backgroundParticles = []; shockwaves = []; score = 0; shardsThisRun = 0; gameStats = { flipsThisRun: 0 };
+        currentChunkIndex = 0; lastSpawnX = screenWidth + 400;
+        if (level.isCustom) { level.data.forEach(item => { const x = item.gridX * GDD.EDITOR.GRID_SIZE; let y, w, h; if(item.type.startsWith('PORTAL')) { entities.push(new Portal(x, item.mode)); } else { w = item.w || GDD.OBSTACLE.WIDTH; h = item.h || GDD.OBSTACLE.WIDTH; y = item.gridY * GDD.EDITOR.GRID_SIZE; entities.push(new (window[item.class] || Obstacle)(x, y, w, h, item.type, item.move)); } }); }
+        else if (level.isRandom) { spawnFromChunk(); }
+        gameState = 'PLAYING'; switchUi('none');
+        uiElements.displays.shardCount.classList.remove('hidden');
+        audioPlayer.playMusic(level.musicBuffer);
+        if (animationFrameId) cancelAnimationFrame(animationFrameId);
+        loop(0);
+    }
+    
+    function gameOver() { gameState = 'GAMEOVER'; triggerScreenShake(10, 300); audioPlayer.playSound('death'); audioPlayer.stopMusic(); for(let i=0; i<50; i++) { particles.push(new Particle(player.x, player.y, playerConfig.color, 20, 1.5)); } if (score > highScore) { highScore = score; localStorage.setItem('gcr_highScore', highScore); } totalShards += shardsThisRun; localStorage.setItem('gcr_totalShards', totalShards); checkAndGrantAchievement('firstDeath'); checkAndGrantAchievement('score1k'); checkAndGrantAchievement('score5k'); checkAndGrantAchievement('collect100'); checkAndGrantAchievement('flipOut'); updateUIs(); document.getElementById('ui-gameover').querySelector('h2').style.color = getCssVar('--obstacle-color'); uiElements.displays.gameoverScore.textContent = Math.floor(score); uiElements.displays.gameoverHighScore.textContent = Math.floor(highScore); uiElements.displays.gameoverShards.textContent = shardsThisRun; uiElements.displays.shardCount.classList.add('hidden'); switchUi('gameover'); }
+
+    function initEditor() { gameState = 'EDITOR'; editor = { cameraX: 0, brush: 'SPIKE_UP', tool: 'PLACE', mouseGridX: 0, mouseGridY: 0, levelData: [], isScaling: false, scaleStartX: 0, scaleStartY: 0 }; switchUi('editor'); document.querySelectorAll('.editor-tool.active-tool, .editor-brush.active-tool').forEach(b => b.classList.remove('active-tool')); document.querySelector('.editor-brush[data-brush="SPIKE_UP"]').classList.add('active-tool'); document.querySelector('.editor-tool[data-tool="PLACE"]').classList.add('active-tool'); if (animationFrameId) cancelAnimationFrame(animationFrameId); loop(0); }
+    function drawEditor() { ctx.clearRect(0, 0, screenWidth, screenHeight); ctx.save(); ctx.translate(-editor.cameraX, 0); ctx.strokeStyle = 'rgba(255, 255, 255, 0.1)'; for (let x = Math.floor(editor.cameraX / GDD.EDITOR.GRID_SIZE) * GDD.EDITOR.GRID_SIZE; x < screenWidth + editor.cameraX; x += GDD.EDITOR.GRID_SIZE) { ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, screenHeight); ctx.stroke(); } for (let y = 0; y < screenHeight; y += GDD.EDITOR.GRID_SIZE) { ctx.beginPath(); ctx.moveTo(editor.cameraX, y); ctx.lineTo(screenWidth + editor.cameraX, y); ctx.stroke(); } editor.levelData.forEach(item => { const x = item.gridX * GDD.EDITOR.GRID_SIZE; const y = item.gridY * GDD.EDITOR.GRID_SIZE; const w = item.w || GDD.OBSTACLE.WIDTH; const h = item.h || GDD.OBSTACLE.WIDTH; if (item.type.startsWith('PORTAL')) { new Portal(x, item.mode).draw(); } else { new (window[item.class] || Obstacle)(x, y, w, h, item.type, item.move).draw(); } }); ctx.globalAlpha = 0.5; const ghostX = editor.mouseGridX * GDD.EDITOR.GRID_SIZE; const ghostY = editor.mouseGridY * GDD.EDITOR.GRID_SIZE; if (editor.tool === 'PLACE') { if (editor.brush.startsWith('PORTAL')) { new Portal(ghostX, editor.brush.split('_')[1]).draw(); } else { const brushClass = { 'DATA_SHARD': DataShard, 'JUMP_PAD': Assist, 'JUMP_RING': Assist }[editor.brush] || Obstacle; new brushClass(ghostX, ghostY, GDD.OBSTACLE.WIDTH, GDD.OBSTACLE.WIDTH, editor.brush).draw(); } } else if (editor.tool === 'SCALE' && editor.isScaling) { ctx.fillStyle = 'rgba(0, 255, 255, 0.3)'; ctx.fillRect(editor.scaleStartX * GDD.EDITOR.GRID_SIZE, editor.scaleStartY * GDD.EDITOR.GRID_SIZE, (editor.mouseGridX - editor.scaleStartX + 1) * GDD.EDITOR.GRID_SIZE, (editor.mouseGridY - editor.scaleStartY + 1) * GDD.EDITOR.GRID_SIZE); } ctx.globalAlpha = 1.0; ctx.restore(); }
+
+    function init() {
+        highScore = parseFloat(localStorage.getItem('gcr_highScore') || '0'); totalShards = parseInt(localStorage.getItem('gcr_totalShards') || '0'); playerConfig = JSON.parse(localStorage.getItem('gcr_playerConfig')) || { color: '#00ffff', deathEffect: 'default', unlockedColors: ['c_cyan'], unlockedDeaths: ['d_default'] }; achievementData = JSON.parse(localStorage.getItem('gcr_achievementData')) || JSON.parse(JSON.stringify(ACHIEVEMENTS));
+        LEVELS = [ { name: "Infinity", musicSrc: 'music/level1.mp3', isCustom: false, isRandom: true, bpm: 128, theme: { player: '#00ffff', obstacle: '#ff6400', ground: '#00ffff' }, difficulty: 'normal' }, { name: "Cyber Grid", musicSrc: 'music/level1.mp3', isCustom: false, isRandom: true, bpm: 135, theme: { player: '#00ffff', obstacle: '#ff6400', ground: '#00ffff' }, difficulty: 'normal' }, { name: "Magma Core", musicSrc: 'music/level2.mp3', isCustom: false, isRandom: true, bpm: 140, theme: { player: '#ffff00', obstacle: '#ff2200', ground: '#ff8800' }, difficulty: 'hard' } ];
+        uiElements.displays.menuHighScore.textContent = Math.floor(highScore); updateUIs();
+        const levelContainer = uiElements.displays.levelSelect; levelContainer.innerHTML = '';
+        LEVELS.forEach((level, index) => { const btn = document.createElement('button'); btn.textContent = level.name; btn.onclick = () => { audioPlayer.loadMusic(level.musicSrc).then(buffer => { level.musicBuffer = buffer; startGame(index); }); }; levelContainer.appendChild(btn); });
+        const customLevels = JSON.parse(localStorage.getItem('gcr_customLevels') || '[]');
+        customLevels.forEach((levelData) => { const level = { ...levelData, isCustom: true, musicSrc: 'music/level1.mp3', theme: LEVELS[0].theme }; const customIndex = LEVELS.length; LEVELS.push(level); const btn = document.createElement('button'); btn.textContent = `CUSTOM: ${level.name}`; btn.onclick = () => { audioPlayer.loadMusic(level.musicSrc).then(buffer => { level.musicBuffer = buffer; startGame(customIndex); }); }; levelContainer.appendChild(btn); });
+        const editorBtn = document.createElement('button'); editorBtn.textContent = "Level Editor"; editorBtn.className = "secondary"; editorBtn.onclick = initEditor;
+        levelContainer.appendChild(editorBtn);
+        gameState = 'MENU'; switchUi('menu');
+    }
+
+    // ------------------------------------------------------------------------------------
+    // --- SECTION 6: EVENT LISTENERS & INITIALIZATION
+    // ------------------------------------------------------------------------------------
+
+    function handleInputStart(e) { e.preventDefault(); audioPlayer._initContext(); isInputActive = true; inputTriggeredThisFrame = true; if (gameState === 'EDITOR') { const rect = canvas.getBoundingClientRect(); const mouseX = e.clientX - rect.left; const mouseY = e.clientY - rect.top; const gridX = Math.floor((mouseX + editor.cameraX) / GDD.EDITOR.GRID_SIZE); const gridY = Math.floor(mouseY / GDD.EDITOR.GRID_SIZE); if (editor.tool === 'DELETE') { editor.levelData = editor.levelData.filter(item => item.gridX !== gridX || item.gridY !== gridY); return; } editor.levelData = editor.levelData.filter(item => item.gridX !== gridX || item.gridY !== gridY); if (editor.tool === 'PLACE') { const newItem = { gridX, gridY, type: editor.brush }; if(editor.brush.startsWith('PORTAL')) { newItem.mode = editor.brush.split('_')[1]; } else { const classMapping = { 'DATA_SHARD': 'DataShard', 'JUMP_PAD': 'Assist', 'JUMP_RING': 'Assist' }; newItem.class = classMapping[editor.brush] || 'Obstacle'; } editor.levelData.push(newItem); } else if (editor.tool === 'SCALE') { editor.isScaling = true; editor.scaleStartX = gridX; editor.scaleStartY = gridY; } } }
+    function handleInputEnd(e) { e.preventDefault(); isInputActive = false; if (gameState === 'EDITOR' && editor.tool === 'SCALE' && editor.isScaling) { editor.isScaling = false; const startX = Math.min(editor.scaleStartX, editor.mouseGridX); const startY = Math.min(editor.scaleStartY, editor.mouseGridY); const endX = Math.max(editor.scaleStartX, editor.mouseGridX); const endY = Math.max(editor.scaleStartY, editor.mouseGridY); const newItem = { gridX: startX, gridY: startY, type: editor.brush, w: (endX - startX + 1) * GDD.EDITOR.GRID_SIZE, h: (endY - startY + 1) * GDD.EDITOR.GRID_SIZE, class: 'Obstacle' }; editor.levelData.push(newItem); } }
+    function handleRightClick(e) { e.preventDefault(); if(gameState === 'EDITOR') { const rect = canvas.getBoundingClientRect(); const mouseX = e.clientX - rect.left; const mouseY = e.clientY - rect.top; const gridX = Math.floor((mouseX + editor.cameraX) / GDD.EDITOR.GRID_SIZE); const gridY = Math.floor(mouseY / GDD.EDITOR.GRID_SIZE); editor.levelData = editor.levelData.filter(item => item.gridX !== gridX || item.gridY !== gridY); } }
+    function handleMouseMove(e) { if(gameState === 'EDITOR') { const rect = canvas.getBoundingClientRect(); editor.mouseGridX = Math.floor((e.clientX - rect.left + editor.cameraX) / GDD.EDITOR.GRID_SIZE); editor.mouseGridY = Math.floor((e.clientY - rect.top) / GDD.EDITOR.GRID_SIZE); } }
+    function handleMouseWheel(e) { if(gameState === 'EDITOR') { editor.cameraX += e.deltaY > 0 ? GDD.EDITOR.GRID_SIZE * 2 : -GDD.EDITOR.GRID_SIZE * 2; } }
+    function handleKeyDown(e) { if (e.code === 'Space') { if(!isInputActive) handleInputStart(e); } if(gameState === 'EDITOR') { if(e.key === 'ArrowRight') editor.cameraX += GDD.EDITOR.GRID_SIZE * 2; if(e.key === 'ArrowLeft') editor.cameraX -= GDD.EDITOR.GRID_SIZE * 2; } }
+    function handleKeyUp(e) { if (e.code === 'Space') handleInputEnd(e); }
+    
+    window.addEventListener('keydown', handleKeyDown); window.addEventListener('keyup', handleKeyUp);
+    canvas.addEventListener('mousedown', handleInputStart); canvas.addEventListener('mouseup', handleInputEnd);
+    canvas.addEventListener('contextmenu', handleRightClick); canvas.addEventListener('mousemove', handleMouseMove); canvas.addEventListener('wheel', handleMouseWheel);
+    document.querySelectorAll('.editor-brush').forEach(btn => { btn.onclick = () => { editor.brush = btn.dataset.brush; document.querySelectorAll('.editor-brush').forEach(b => b.classList.remove('active-tool')); btn.classList.add('active-tool'); }; });
+    document.querySelectorAll('.editor-tool').forEach(btn => { btn.onclick = () => { editor.tool = btn.dataset.tool; document.querySelectorAll('.editor-tool').forEach(b => b.classList.remove('active-tool')); btn.classList.add('active-tool'); }; });
+    uiElements.buttons.editorSave.onclick = () => { const name = prompt("Enter level name:", "My Awesome Level"); if (name) { const customLevels = JSON.parse(localStorage.getItem('gcr_customLevels') || '[]'); customLevels.push({ name, data: editor.levelData, bpm: 120 }); localStorage.setItem('gcr_customLevels', JSON.stringify(customLevels)); gameState = 'MENU'; if (animationFrameId) cancelAnimationFrame(animationFrameId); init(); } };
+    uiElements.buttons.retry.onclick = () => startGame(currentLevelIndex);
+    uiElements.buttons.mainMenu.onclick = () => { init(); };
+    uiElements.buttons.garage.onclick = () => switchUi('garage');
+    uiElements.buttons.achievements.onclick = () => switchUi('achievements');
+    uiElements.buttons.garageBack.onclick = () => switchUi('menu');
+    uiElements.buttons.achievementsBack.onclick = () => switchUi('menu');
+    
+    window.addEventListener('resize', () => { screenWidth = window.innerWidth; screenHeight = window.innerHeight; canvas.width = screenWidth; canvas.height = screenHeight; });
+    
+    // Kick off the game
+    screenShake = { intensity: 0, duration: 0 };
+    strobeEffect = { life: 0, color: '' };
+    init();
+
+</script>
+</body>
+</html>
